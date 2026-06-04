@@ -16,9 +16,10 @@ typedef struct{
 
 typedef struct{
     unsigned long long addr;
-    unsigned int value;//giving me negative values not meant to be
+    unsigned int value;
     unsigned int previous;//
 }address_info;
+
 
 typedef struct{
     unsigned long long addr;
@@ -27,10 +28,17 @@ typedef struct{
 }filtered_adderess_info;
 
 typedef struct{
+    unsigned long long addr;
+    char *found_string;
+}string_address_info;
+
+
+typedef struct{
     process_info *entries;
     size_t capacity;
     size_t count;
 }process_arr;
+
 
 typedef struct {
     address_info *info;
@@ -44,9 +52,16 @@ typedef struct {
     size_t count;
 }filtered_address_arr;
 
+typedef struct {
+    string_address_info *info;
+    size_t capacity;
+    size_t count;
+}string_address_arr;
+
 extern address_arr global_address_info;
 extern process_arr global_process;
 extern filtered_address_arr global_filtered_info;
+extern string_address_arr global_string_info;
 
 process_arr init_array();
 void add_array(process_arr *array_list,process_info *entries);
@@ -55,7 +70,6 @@ void add_array_address_info(address_arr *arr,address_info *info);
 void add_array_address_info_filter(filtered_address_arr *arr,filtered_adderess_info *info);
 filtered_address_arr init_filtered_addr_array();
 void free_address_array(address_arr *arr);
-void free_process_array(process_arr *arr);
 void free_filtered_address_array(filtered_address_arr *arr);
 #endif
 

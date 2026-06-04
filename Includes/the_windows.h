@@ -7,6 +7,20 @@
 #include"process_handle.h"
 #include"proclist.h"
 
+//handle the type gotten
+/*
+doesn't work for shit sadly well damn 
+#define Type(x) _Generic((x), \
+    int: "int", \
+    long: "long", \
+    float: "float", \
+    unsigned int: "unsigned int", \
+    unsigned long long: "unsigned long long", \
+    unsigned long: "unsigned long", \
+    unsigned float: "unsigned float", \
+    default: "unknown")
+*/
+
 HWND CREATE_LIST(HWND PARENT,process_arr *array);
 HWND CREATE_BOTTOM_LIST(HWND PARENT);
 HWND CREATE_SIDE_OPTIONS(HWND Parent);
@@ -22,6 +36,7 @@ HWND CREATE_COMBO_BOX(HWND Parent);
 HWND NEXT_SCAN(HWND Parent);
 HWND create_popup(HWND parent);
 HWND create_status_bar(HWND Parent);
+void CREATE_CHECK_BOX(int pos);
 
 typedef struct{
     HWND hList;//global handle for the process list to be able to
@@ -32,11 +47,13 @@ typedef struct{
     HWND my_drop_down; //handle for the drop down selection
     HWND address_form;//handle for address field in the popup window for writting to an adddress
     HWND bar; //handle for status bar
+    HWND hlist_bottom; //handle for the bottom list
     int pid;//make pid global
     unsigned int value;//value gotten from the input text field
     unsigned int form_value;//value gotten from the address form 
     unsigned long long write_address;//selected address from the address field u want to write to
     char info_buff[200];// process id and name
+    char selection[128];
 }global_window_states;
 
 extern global_window_states gwin;
@@ -64,3 +81,5 @@ extern global_window_states gwin;
 #define ID_POPUP_FORM       60015 //INPUT FORM IN POPUP WIN
 #define ID_STATUS_BAR       60016//STATUS BAR
 #define ID_LEFT_TABLE       60017//LEFT TABLE
+#define ID_BOTTOM_TABLE     60018//BOTTOM TABLE
+

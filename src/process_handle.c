@@ -10,6 +10,16 @@ filtered_address_arr global_filtered_info;
 global_process_handle global_proc;
 //if void can handle various types i don't know;
 
+void NT_Error_Message(NTSTATUS status,unsigned long long addr){
+        char err_mess[50];
+        char err_code[20];
+        DWORD err= GetLastError();
+        snprintf(err_mess,sizeof(err_mess),"error in writing to 0%p", (LPCVOID)addr);
+        snprintf(err_code,sizeof(err_code),"%d",err);
+        MessageBox(NULL,err_code,"error code",MB_OK);
+        MessageBox(NULL,err_mess,"error",MB_OK);
+}
+
 unsigned int write_memomry(HANDLE proc,UINT value,unsigned long long addr){
     size_t number_of_bytes_to_written;
     HMODULE ntdll = GetModuleHandle("ntdll.dll");
@@ -22,17 +32,12 @@ unsigned int write_memomry(HANDLE proc,UINT value,unsigned long long addr){
     NTSTATUS status = ZwWriteVirtualMemory(proc,(LPCVOID)addr,&value,sizeof(value),&number_of_bytes_to_written);
 
     if(NT_ERROR(status)){
-        char err_mess[50];
-        char err_code[20];
-        DWORD err= GetLastError();
-        snprintf(err_mess,sizeof(err_mess),"error in writing to 0%p", (LPCVOID)addr);
-        snprintf(err_code,sizeof(err_code),"%d",err);
-        MessageBox(NULL,err_code,"error code",MB_OK);
-        MessageBox(NULL,err_mess,"error",MB_OK);
+        NT_Error_Message(status,addr);
         return 0;
     }
     return 1;
 }
+
 
 unsigned int read_memory(HANDLE proc,unsigned long long addr){
     //you technically can read out all
@@ -54,13 +59,7 @@ unsigned int read_memory(HANDLE proc,unsigned long long addr){
     }
     NTSTATUS status =ZwReadVirtualMemory(proc,(LPCVOID)addr,buff,sizeof(buff),&number_of_bytes_read);
     if(NT_ERROR(status)){
-        char err_mess[50];
-        char err_code[20];
-        DWORD err= GetLastError();
-        snprintf(err_mess,sizeof(err_mess),"error in reading from 0%p", (LPCVOID)addr);
-        snprintf(err_code,sizeof(err_code),"%d",err);
-        MessageBox(NULL,err_code,"error code",MB_OK);
-        MessageBox(NULL,err_mess,"error",MB_OK);
+        NT_Error_Message(status,addr);
         free(buff);
         return 0;
     }
@@ -70,7 +69,7 @@ unsigned int read_memory(HANDLE proc,unsigned long long addr){
 }
 
 DWORD WINAPI scan_thread(LPVOID lpParam){
-    //cast the struct pointer to lparam
+    //cast the struct pointer to lparam 
     thread_params *params = (thread_params*)lpParam;
     scan_memory(params->pid,params->Target);
     PostMessage(params->hwnd_test,WM_USER+4,0,0);//POST TO WM_SCAN_THREAD_FINISHED;

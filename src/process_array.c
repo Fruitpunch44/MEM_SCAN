@@ -77,21 +77,14 @@ void add_array_address_info_filter(filtered_address_arr *arr,filtered_adderess_i
     }
     arr->info[arr->count++]=*info;
 }
+
 void free_address_array(address_arr *arr){
     free(arr->info);
     arr->info=NULL;
     arr->capacity=0;
     arr->count=0;
 }
-void free_process_array(process_arr *arr){
-    for(size_t i =0 ;i<arr->count;i++){
-        free(arr->entries[i].NAME);//free all string values
-    }
-    free(arr->entries);
-    arr->entries=NULL;
-    arr->capacity=0;
-    arr->count=0;
-}
+
 void free_filtered_address_array(filtered_address_arr *arr){
     free(arr->info);
     arr->info=NULL;

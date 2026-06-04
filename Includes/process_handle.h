@@ -56,7 +56,7 @@ void compare_changes(DWORD proc_id,address_arr *arr);
 DWORD WINAPI scan_thread(LPVOID lpParam);
 void write_to_address(unsigned long long address,unsigned int value);
 unsigned int write_memomry(HANDLE proc,UINT value,unsigned long long addr);
-
+void NT_Error_Message(NTSTATUS status,unsigned long long addr);
 
 
 

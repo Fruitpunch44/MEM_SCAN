@@ -3,7 +3,6 @@
 
 process_arr global_process;
 BOOL getproclist(){
-    free_process_array(&global_process);
     global_process =init_array();
     HANDLE hprocsnap;
     HANDLE process;

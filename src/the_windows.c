@@ -163,8 +163,7 @@ LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam){
                     if(HIWORD(wparam)==CBN_SELCHANGE){
                         //does nothing for now
                         int Item_index = SendMessage((HWND)lparam,(UINT)CB_GETCURSEL,(WPARAM)0,(LPARAM)0);
-                        char buff[128];
-                        SendMessage((HWND)lparam,(UINT)CB_GETLBTEXT,(WPARAM)Item_index,(LPARAM)buff);
+                        SendMessage((HWND)lparam,(UINT)CB_GETLBTEXT,(WPARAM)Item_index,(LPARAM)gwin.selection);
                     }
             }
             break;
@@ -192,21 +191,33 @@ LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam){
                 case NM_DBLCLK:
                     int pos = ListView_GetNextItem(gwin.hlist_left_table,-1,LVNI_SELECTED);
                     if(pnmh->idFrom == ID_LEFT_TABLE){
-                        char addr[64];
-                        char buff[128];
-                        int pos =ListView_GetNextItem(gwin.hlist_left_table,-1,LVNI_SELECTED);
-                        int addr_column  = 0;
-                        
-                        //check to make sure the item is selected first before calling write function
-                        if(pos != -1){
-                            ListView_GetItemText(gwin.hlist_left_table,pos,addr_column,addr,sizeof(addr));
-                            gwin.write_address= strtoull(addr,NULL,16);
-                            snprintf(buff,sizeof(buff),"the address u selected is 0x%llx",gwin.write_address);
-                            MessageBox(NULL,buff,"test",MB_OK);
-                            create_popup(hwnd);
-                        }   
-                        break;
+                        CREATE_CHECK_BOX(pos);
+                    }
+                    //check to make sure the item is selected first before calling write function
+                    if(pnmh->idFrom ==ID_BOTTOM_TABLE){
+                    char addr[64];
+                    char buff[128];
+                    int addr_column  = 0;
+                    if(pos != -1){
+                        ListView_GetItemText(gwin.hlist_left_table,pos,addr_column,addr,sizeof(addr));
+                        gwin.write_address= strtoull(addr,NULL,16);
+                        snprintf(buff,sizeof(buff),"the address u selected is 0x%llx",gwin.write_address);
+                        MessageBox(NULL,buff,"test",MB_OK);
+                        create_popup(hwnd);
+                    } 
                 }
+                case NM_RCLICK:
+                    HMENU hpop;
+                    hpop=CreatePopupMenu();
+                    if(pnmh->idFrom == ID_BOTTOM_TABLE){
+                        if(pos != -1){
+                            AppendMenu(hpop,MF_STRING,ID_POPUP_WRITE,"Write to address");
+                            AppendMenu(hpop,MF_STRING,ID_POPUP_CANCEL,"remove");
+                            SetMenu(hwnd,hpop);
+                        }
+                    }
+                break;
+            
             }
             break;
         case WM_WRITE_VAL:
@@ -311,8 +322,8 @@ HWND CREATE_COMBO_BOX(HWND Parent){
     NULL);
     //find a way to get the type value you want to search for and use that in the scan
     //for now i can just scan 4 bytes
-    SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"INT(4 BYTES)");
-    SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"STRING");
+    SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"INT");
+    SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"FLOAT");
     SendMessage(gwin.my_drop_down,(UINT)CB_SETCURSEL,(WPARAM)0,(LPARAM)0);
     return gwin.my_drop_down;
     
@@ -482,16 +493,34 @@ void get_target_value(){
 }
 //add pid serach
 //add memory addition
+void CREATE_CHECK_BOX(int pos){
+    ListView_SetExtendedListViewStyle(
+    gwin.hlist_bottom,
+    LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
+    char value_buff[240];
+    char address_buff[240];
+    int value_col = 3;
+    int type_col = 2;
+    ListView_GetItemText(gwin.hlist_left_table,pos,1,value_buff,240);
+    ListView_GetItemText(gwin.hlist_left_table,pos,0,address_buff,240);  
+
+    LVITEM lvi = {0};
+    lvi.mask = LVIF_TEXT;
+    lvi.iItem = pos;  // or a tracked count
+    lvi.pszText=address_buff;
+    ListView_InsertItem(gwin.hlist_bottom, &lvi);
+    ListView_SetItemText(gwin.hlist_bottom,pos,value_col,value_buff);
+    
+
+}
 HWND CREATE_BOTTOM_LIST(HWND PARENT){
-    HWND hlist_bottom;
-    hlist_bottom = CreateWindowEx(
+    gwin.hlist_bottom = CreateWindowEx(
             WS_EX_CLIENTEDGE,
             WC_LISTVIEW,
             "",
             WS_CHILD | WS_VISIBLE | LVS_REPORT,
             20,390,800,200,
-            PARENT,
-            NULL,
+            PARENT,(HMENU)ID_BOTTOM_TABLE,
             GetModuleHandle(NULL),
             NULL
             );
@@ -499,28 +528,30 @@ HWND CREATE_BOTTOM_LIST(HWND PARENT){
     LVCOLUMN col;
     col.mask = LVCF_TEXT | LVCF_WIDTH;
     col.cx = 200;
-    col.pszText = "ACTIVE";
-    ListView_InsertColumn(hlist_bottom,0,&col);
+    col.pszText = "ADDRESS";
+    ListView_InsertColumn(gwin.hlist_bottom,0,&col);
 
     LVCOLUMN col2;
     col2.mask = LVCF_TEXT | LVCF_WIDTH; 
     col2.cx = 200;
     col2.pszText = "DESCRIPTION";
-    ListView_InsertColumn(hlist_bottom,1,&col2);
+    ListView_InsertColumn(gwin.hlist_bottom,1,&col2);
 
     LVCOLUMN col3;
     col3.mask = LVCF_TEXT | LVCF_WIDTH; 
     col3.cx = 200;
     col3.pszText = "TYPE";
-    ListView_InsertColumn(hlist_bottom,2,&col3);
+    ListView_InsertColumn(gwin.hlist_bottom,2,&col3);
 
     LVCOLUMN col4;
     col4.mask = LVCF_TEXT | LVCF_WIDTH; 
     col4.cx = 200;
     col4.pszText = "VALUE";
-    ListView_InsertColumn(hlist_bottom,3,&col4);
+    ListView_InsertColumn(gwin.hlist_bottom,3,&col4);
 
-    return hlist_bottom;
+
+
+    return gwin.hlist_bottom;
 
 }
 HWND create_status_bar(HWND Parent){
