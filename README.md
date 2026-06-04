@@ -51,7 +51,6 @@ MEM_SCAN/
 - NT functions (`ZwReadVirtualMemory`, `NtQueryVirtualMemory`) are resolved dynamically via `GetProcAddress` from `ntdll.dll` to avoid linking against undocumented import libs
 - Scan work is dispatched with `CreateThread`; multi-parameter passing uses a heap-allocated struct cast through `LPVOID lpParam` (see `somenotes.md`)
 - Results are stored in a resizable dynamic array (`process_array.c`) that grows on demand
-- ListView uses `NM_CUSTOMDRAW` for per-row rendering control
 
 ---
 
