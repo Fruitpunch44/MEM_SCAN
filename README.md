@@ -30,6 +30,10 @@ MEM_SCAN/
 │   ├── process_handle.c   # Handle acquisition and memory read wrappers
 │   └── process_array.c    # Dynamic array for storing scan matches
 ├── Includes/              # Header files
+|   ├── the_windows.h    
+│   ├── proclist.h         
+│   ├── process_handle.h  
+│   └── process_array.h    
 ├── bin/                   # Build output
 └── somenotes.md           # Some notes on threading patterns
 ```
