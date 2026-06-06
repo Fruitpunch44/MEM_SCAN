@@ -134,6 +134,8 @@ LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam){
                 case ID_OPEN_PROCESS:
                     CREATE_LIST(hwnd,&global_process);
                     break;
+                case ID_RC_CANCEL:
+                    ListView_DeleteItem(gwin.hlist_bottom,0);
                 case ID_SCAN_BUTTON:
                     if(HIWORD(wparam)==BN_CLICKED){
                         MessageBeep(MB_ICONINFORMATION);
@@ -165,6 +167,7 @@ LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam){
                         int Item_index = SendMessage((HWND)lparam,(UINT)CB_GETCURSEL,(WPARAM)0,(LPARAM)0);
                         SendMessage((HWND)lparam,(UINT)CB_GETLBTEXT,(WPARAM)Item_index,(LPARAM)gwin.selection);
                     }
+                    break;
             }
             break;
         case WM_REFRESH:
@@ -208,14 +211,20 @@ LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam){
                 }
                 case NM_RCLICK:
                     HMENU hpop;
-                    hpop=CreatePopupMenu();
+                    POINT cur_point;
                     if(pnmh->idFrom == ID_BOTTOM_TABLE){
                         if(pos != -1){
-                            AppendMenu(hpop,MF_STRING,ID_POPUP_WRITE,"Write to address");
-                            AppendMenu(hpop,MF_STRING,ID_POPUP_CANCEL,"remove");
-                            SetMenu(hwnd,hpop);
+                            hpop=CreatePopupMenu();
+                            if(GetCursorPos(&cur_point)){
+                                AppendMenu(hpop,MF_STRING,ID_RC_WRITE,"Place holder lol");
+                                AppendMenu(hpop,MF_STRING,ID_RC_CANCEL,"Remove");
+                                //create shortcut menu
+                                TrackPopupMenu(hpop,TPM_CENTERALIGN,cur_point.x,cur_point.y,
+                                0,hwnd,NULL);
+                            }
                         }
                     }
+                    DestroyMenu(hpop);
                 break;
             
             }
@@ -322,6 +331,7 @@ HWND CREATE_COMBO_BOX(HWND Parent){
     NULL);
     //find a way to get the type value you want to search for and use that in the scan
     //for now i can just scan 4 bytes
+    SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"<Select Type>");
     SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"INT");
     SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"FLOAT");
     SendMessage(gwin.my_drop_down,(UINT)CB_SETCURSEL,(WPARAM)0,(LPARAM)0);
@@ -416,6 +426,8 @@ HWND CREATE_GROUP_BOX(HWND Parent){
     GetModuleHandle(NULL),
     NULL
     );
+    y_padding+=gap_y+10;
+
     return gwin.group_box;
 }
 HWND CREATE_LEFT_SIDE_Table(HWND PARENT,address_arr *addr_arr){
@@ -497,12 +509,13 @@ void CREATE_CHECK_BOX(int pos){
     ListView_SetExtendedListViewStyle(
     gwin.hlist_bottom,
     LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
-    char value_buff[240];
-    char address_buff[240];
+
+    char value_buff[64];
+    char address_buff[64];
     int value_col = 3;
     int type_col = 2;
-    ListView_GetItemText(gwin.hlist_left_table,pos,1,value_buff,240);
-    ListView_GetItemText(gwin.hlist_left_table,pos,0,address_buff,240);  
+    ListView_GetItemText(gwin.hlist_left_table,pos,1,value_buff,64);
+    ListView_GetItemText(gwin.hlist_left_table,pos,0,address_buff,64);  
 
     LVITEM lvi = {0};
     lvi.mask = LVIF_TEXT;
@@ -510,6 +523,8 @@ void CREATE_CHECK_BOX(int pos){
     lvi.pszText=address_buff;
     ListView_InsertItem(gwin.hlist_bottom, &lvi);
     ListView_SetItemText(gwin.hlist_bottom,pos,value_col,value_buff);
+    ListView_SetItemText(gwin.hlist_bottom,pos,type_col,gwin.selection);
+
     
 
 }
@@ -554,6 +569,7 @@ HWND CREATE_BOTTOM_LIST(HWND PARENT){
     return gwin.hlist_bottom;
 
 }
+
 HWND create_status_bar(HWND Parent){
     gwin.bar=CreateWindowEx(0,STATUSCLASSNAME,NULL,CCS_BOTTOM|WS_CHILD|WS_VISIBLE,
         0,0,0,0,

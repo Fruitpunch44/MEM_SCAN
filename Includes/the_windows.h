@@ -82,4 +82,7 @@ extern global_window_states gwin;
 #define ID_STATUS_BAR       60016//STATUS BAR
 #define ID_LEFT_TABLE       60017//LEFT TABLE
 #define ID_BOTTOM_TABLE     60018//BOTTOM TABLE
+#define ID_RC_WRITE         60019 //PLACE HOLDER DOES NOTHING
+#define ID_RC_CANCEL        60020 //DELETE BOTTOM LIST ENTRY
+
 
