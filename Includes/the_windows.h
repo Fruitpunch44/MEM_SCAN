@@ -29,7 +29,7 @@ HWND CREATE_LEFT_SIDE_Table(HWND Parent,address_arr *addr_arr);
 HWND CREATE_SCAN(HWND Parent);
 void handle_address_range();
 void refresh_left_table(HWND Parent);
-void get_target_value();
+value_type get_selection_from_combo(char *selection);
 void refresh_left_table_filter(HWND hwnd);
 HWND show_selected_process(HWND Parent);
 HWND CREATE_COMBO_BOX(HWND Parent);
@@ -37,6 +37,8 @@ HWND NEXT_SCAN(HWND Parent);
 HWND create_popup(HWND parent);
 HWND create_status_bar(HWND Parent);
 void CREATE_CHECK_BOX(int pos);
+VALUE_TYPE get_target_value(VALUE_TYPE *val);
+void type_print(VALUE_TYPE *target);
 
 typedef struct{
     HWND hList;//global handle for the process list to be able to
@@ -49,11 +51,11 @@ typedef struct{
     HWND bar; //handle for status bar
     HWND hlist_bottom; //handle for the bottom list
     int pid;//make pid global
-    unsigned int value;//value gotten from the input text field
-    unsigned int form_value;//value gotten from the address form 
+    VALUE_TYPE value;//value gotten from the input text field
+    VALUE_TYPE form_value;//value gotten from the address form 
     unsigned long long write_address;//selected address from the address field u want to write to
     char info_buff[200];// process id and name
-    char selection[128];
+    char selection[200];//store type from drop down selection
 }global_window_states;
 
 extern global_window_states gwin;

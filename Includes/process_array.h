@@ -5,7 +5,7 @@
 #include<stdlib.h>
 #include<strings.h>
 #include<windows.h>
-
+#include "process_handle.h"
 
 typedef struct{
     CHAR *NAME;
@@ -16,15 +16,15 @@ typedef struct{
 
 typedef struct{
     unsigned long long addr;
-    unsigned int value;
-    unsigned int previous;//
+    VALUE_TYPE value;
+    VALUE_TYPE previous;
 }address_info;
 
 
 typedef struct{
     unsigned long long addr;
-    unsigned int value;
-    unsigned int previous;
+    VALUE_TYPE value;
+    VALUE_TYPE previous;
 }filtered_adderess_info;
 
 typedef struct{
@@ -71,6 +71,7 @@ void add_array_address_info_filter(filtered_address_arr *arr,filtered_adderess_i
 filtered_address_arr init_filtered_addr_array();
 void free_address_array(address_arr *arr);
 void free_filtered_address_array(filtered_address_arr *arr);
+void compare_changes(DWORD proc_id,address_arr *arr);
 #endif
 
 

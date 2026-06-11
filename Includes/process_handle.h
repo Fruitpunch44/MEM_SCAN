@@ -5,7 +5,6 @@
 #include<windows.h>
 #include<winternl.h>
 #define BUFF_SIZE 1024
-#include "process_array.h"
 
 typedef enum _MEMORY_INFORMATION_CLASS
 {
@@ -38,10 +37,28 @@ typedef NTSTATUS(NTAPI *pNtQueryVirtualMemory)(
 );
 
 //void string_search(char *string_to_find);
+typedef enum{
+    TYPE_INT,
+    TYPE_FLOAT,
+    TYPE_DOUBLE,
+    TYPE_CHAR
+}value_type;
+
+//unions to store the probable data type
+typedef struct {
+    value_type type;
+    union {
+        unsigned char  byte_value;
+        unsigned int   int_value;
+        float          float_value;
+        double         double_value;
+        unsigned long long ull_value;
+        }VALUE_UNION;
+}VALUE_TYPE;
 
 typedef struct{
     DWORD pid;
-    DWORD Target;
+    VALUE_TYPE Target;
     HWND  hwnd_test;
 }thread_params;
 
@@ -49,13 +66,15 @@ typedef struct{
     HANDLE proc;
 }global_process_handle;
 
-unsigned int read_memory(HANDLE proc,unsigned long long addr);
-void scan_memory(DWORD proc_id,DWORD target);
+
+size_t get_type_size(value_type type);
+
+int read_memory(HANDLE proc,unsigned long long addr,void *buff,size_t size);
+void scan_memory(DWORD proc_id,VALUE_TYPE *target);
 //void get_process_id(DWORD proc_id,unsigned long long start);
-void compare_changes(DWORD proc_id,address_arr *arr);
 DWORD WINAPI scan_thread(LPVOID lpParam);
-void write_to_address(unsigned long long address,unsigned int value);
-unsigned int write_memomry(HANDLE proc,UINT value,unsigned long long addr);
+void  write_to_address(unsigned long long address,void *value,size_t value_size);
+int write_memomry(HANDLE proc,void *value,size_t value_size,unsigned long long addr);
 void NT_Error_Message(NTSTATUS status,unsigned long long addr);
 
 

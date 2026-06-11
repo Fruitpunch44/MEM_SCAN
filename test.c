@@ -5,10 +5,7 @@
 // Run this, then use your scanner to find and modify these values
 
 int main(void) {
-    // Allocate console
-    AllocConsole();
-    freopen("CONOUT$", "w", stdout);
-    
+   
     printf("Memory Scanner Test Target\n");
     printf("===========================\n\n");
     printf("PID: %lu\n\n", GetCurrentProcessId());

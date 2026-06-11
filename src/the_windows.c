@@ -20,8 +20,8 @@ LRESULT CALLBACK PopupProc(HWND hwnd,UINT msg, WPARAM wparam, LPARAM lparam){
                     char buff[90];
                     char test[220];
                     GetWindowText(gwin.address_form,buff,sizeof(buff));
-                    gwin.form_value= strtoul(buff,NULL,10);
-                    snprintf(test,sizeof(test),"this is a test val:%u",gwin.form_value);
+                    gwin.form_value.VALUE_UNION.ull_value = strtoul(buff,NULL,10);
+                    snprintf(test,sizeof(test),"this is a test val:%u",gwin.form_value.VALUE_UNION.ull_value);
                     MessageBox(NULL,test,"TEST",MB_OK);
                     char dbg[100];
                     snprintf(dbg, sizeof(dbg), "Posting WM_WRITE_VAL to: %p", GetParent(hwnd));//debugging
@@ -136,18 +136,25 @@ LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam){
                     break;
                 case ID_RC_CANCEL:
                     ListView_DeleteItem(gwin.hlist_bottom,0);
+                    break;
                 case ID_SCAN_BUTTON:
                     if(HIWORD(wparam)==BN_CLICKED){
                         MessageBeep(MB_ICONINFORMATION);
-                        get_target_value();
+                        VALUE_TYPE target={0};
+                        target.type =get_selection_from_combo(gwin.selection);
+                        get_target_value(&target);
                         //create thread to scan memory so ui doesnt freeze
+                        char dbg[300];
+                        snprintf(dbg,300,"what is the current type this is the current type %d",target.type);
+                        MessageBox(NULL,dbg,"test",MB_OK);
                         thread_params *params = malloc(sizeof(thread_params));
                         params->pid=gwin.pid;
-                        params->Target=gwin.value;
+                        params->Target=target;
                         params->hwnd_test = hwnd;
                         HANDLE threads=CreateThread(NULL,0,scan_thread,params,0,NULL);
                         CloseHandle(threads);
                         SendMessage(gwin.bar,SB_SETTEXT,2,(LPARAM)"Scanning");
+                        type_print(&target);
                         //do not wait for thread it kinda crashes my computer
                     }
                     break;
@@ -166,6 +173,10 @@ LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam){
                         //does nothing for now
                         int Item_index = SendMessage((HWND)lparam,(UINT)CB_GETCURSEL,(WPARAM)0,(LPARAM)0);
                         SendMessage((HWND)lparam,(UINT)CB_GETLBTEXT,(WPARAM)Item_index,(LPARAM)gwin.selection);
+                        char buff[85];
+                        snprintf(buff,85,"%s",gwin.selection);
+                        MessageBox(hwnd,buff,"test",MB_OK);
+
                     }
                     break;
             }
@@ -230,7 +241,7 @@ LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam){
             }
             break;
         case WM_WRITE_VAL:
-            write_to_address(gwin.write_address,gwin.form_value);   
+            write_to_address(gwin.write_address,&gwin.form_value.VALUE_UNION,get_type_size(gwin.form_value.type));   
             break;
         case WM_DESTROY:
             PostQuitMessage(0);
@@ -334,11 +345,53 @@ HWND CREATE_COMBO_BOX(HWND Parent){
     SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"<Select Type>");
     SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"INT");
     SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"FLOAT");
+    SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"DOUBLE");
+    SendMessage(gwin.my_drop_down,(UINT)CB_ADDSTRING,(WPARAM)0,(LPARAM)"CHAR");
     SendMessage(gwin.my_drop_down,(UINT)CB_SETCURSEL,(WPARAM)0,(LPARAM)0);
     return gwin.my_drop_down;
     
 }
-
+value_type get_selection_from_combo(char *selection){
+    if(strcmp(selection,"INT")==0){
+        return TYPE_INT;
+    }
+       if(strcmp(selection,"FLOAT")==0){
+        return TYPE_FLOAT;
+    }
+       if(strcmp(selection,"DOUBLE")==0){
+        return TYPE_DOUBLE;
+    }
+       if(strcmp(selection,"CHAR")==0){
+        return TYPE_CHAR;
+    }
+}
+void type_print(VALUE_TYPE *target){
+    switch(target->type){
+        case TYPE_INT:
+            char msg[60];
+            snprintf(msg,60,"int: %d",target->VALUE_UNION.int_value);
+            MessageBox(NULL,msg,"test",MB_OK);
+            break;
+        case TYPE_FLOAT:
+            char msg2[60];
+            snprintf(msg2,60,"float: %f",target->VALUE_UNION.float_value);
+            MessageBox(NULL,msg2,"test",MB_OK);
+            break;
+        case TYPE_DOUBLE:
+            char msg3[60];
+            snprintf(msg3,60,"double: %d",target->VALUE_UNION.double_value);
+            MessageBox(NULL,msg3,"test",MB_OK);
+            break;
+        case TYPE_CHAR:
+            char msg4[60];
+            snprintf(msg4,60,"char: %c",target->VALUE_UNION.byte_value);
+            MessageBox(NULL,msg4,"test",MB_OK);
+            break;
+        default:
+            MessageBox(NULL,"INVALID","TEST",MB_OK);
+            
+    }
+}
 HWND NEXT_SCAN(HWND Parent){
     HWND next_scan_button;
     next_scan_button=CreateWindowEx(WS_EX_WINDOWEDGE,
@@ -491,12 +544,32 @@ HWND CREATE_SIDE_OPTIONS(HWND Parent){
     return gwin.h_options;
 }
 
-void get_target_value(){
+VALUE_TYPE get_target_value(VALUE_TYPE *val){
     //char dbg[120];
     //char dbg_2[120];
     char target_value[64];
     GetWindowText(gwin.h_options, target_value, sizeof(target_value));
-    gwin.value = atoi(target_value);
+    switch(val->type){
+        case TYPE_INT:
+            val->VALUE_UNION.int_value = atoi(target_value);
+            gwin.value = *val;
+            break;
+        case TYPE_FLOAT:
+            val->VALUE_UNION.float_value = atof(target_value);
+            gwin.value = *val;
+            break;
+        case TYPE_DOUBLE:
+            val->VALUE_UNION.double_value = atof(target_value);
+            gwin.value = *val;
+            break;
+        case TYPE_CHAR:
+            val->VALUE_UNION.byte_value = (unsigned char)atoi(target_value);
+            gwin.value = *val;
+            break;
+        default:
+            MessageBoxA(NULL,"unable to set value type","error",MB_OK);
+    }
+    return gwin.value;
     //snprintf(dbg,sizeof(dbg),"%d",value);
     //MessageBox(NULL,dbg,"DEBUG",MB_OK);
     //snprintf(dbg_2,sizeof(dbg_2),"%d",gwin.pid);
@@ -508,7 +581,7 @@ void get_target_value(){
 void CREATE_CHECK_BOX(int pos){
     ListView_SetExtendedListViewStyle(
     gwin.hlist_bottom,
-    LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
+    LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT|LVS_EX_INFOTIP);
 
     char value_buff[64];
     char address_buff[64];
@@ -702,11 +775,11 @@ void refresh_left_table(HWND hwnd){
             ListView_InsertItem(gwin.hlist_left_table,&item);
 
             char value[64];
-            snprintf(value,sizeof(value),"%u",global_address_info.info[i].value);
+            snprintf(value,sizeof(value),"%u",global_address_info.info[i].value.VALUE_UNION);
             ListView_SetItemText(gwin.hlist_left_table,i,1,value);
 
             char prev[64];
-            snprintf(prev,sizeof(prev),"%u",global_address_info.info[i].previous);
+            snprintf(prev,sizeof(prev),"%u",global_address_info.info[i].previous.VALUE_UNION);
             ListView_SetItemText(gwin.hlist_left_table,i,2,prev);
         }
 }
@@ -738,11 +811,11 @@ void refresh_left_table_filter(HWND hwnd){
                 ListView_InsertItem(gwin.hlist_left_table,&item);
 
                 char value_filter[64];
-                snprintf(value_filter,sizeof(value_filter),"%u",global_filtered_info.info[i].value);
+                snprintf(value_filter,sizeof(value_filter),"%u",global_filtered_info.info[i].value.VALUE_UNION);
                 ListView_SetItemText(gwin.hlist_left_table,i,1,value_filter);
 
                 char prev_filter[64];
-                snprintf(prev_filter,sizeof(prev_filter),"%u",global_filtered_info.info[i].previous);
+                snprintf(prev_filter,sizeof(prev_filter),"%u",global_filtered_info.info[i].previous.VALUE_UNION);
                 ListView_SetItemText(gwin.hlist_left_table,i,2,prev_filter);
         }
 }

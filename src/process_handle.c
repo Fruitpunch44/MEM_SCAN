@@ -19,8 +19,16 @@ void NT_Error_Message(NTSTATUS status,unsigned long long addr){
         MessageBox(NULL,err_code,"error code",MB_OK);
         MessageBox(NULL,err_mess,"error",MB_OK);
 }
-
-unsigned int write_memomry(HANDLE proc,UINT value,unsigned long long addr){
+size_t get_type_size(value_type type){
+    switch(type){
+        case TYPE_INT: return sizeof(int);
+        case TYPE_FLOAT: return sizeof(float);
+        case TYPE_DOUBLE: return sizeof(double);
+        case TYPE_CHAR: return sizeof(char);
+        default: return 0;
+    }
+}
+int write_memomry(HANDLE proc,void *value,size_t value_size,unsigned long long addr){
     size_t number_of_bytes_to_written;
     HMODULE ntdll = GetModuleHandle("ntdll.dll");
     pZwWriteVirtualMemory ZwWriteVirtualMemory = (pZwWriteVirtualMemory)GetProcAddress(ntdll,"ZwWriteVirtualMemory");
@@ -29,7 +37,7 @@ unsigned int write_memomry(HANDLE proc,UINT value,unsigned long long addr){
         return 0;
     }
 
-    NTSTATUS status = ZwWriteVirtualMemory(proc,(LPCVOID)addr,&value,sizeof(value),&number_of_bytes_to_written);
+    NTSTATUS status = ZwWriteVirtualMemory(proc,(LPCVOID)addr,value,value_size,&number_of_bytes_to_written);
 
     if(NT_ERROR(status)){
         NT_Error_Message(status,addr);
@@ -39,39 +47,28 @@ unsigned int write_memomry(HANDLE proc,UINT value,unsigned long long addr){
 }
 
 
-unsigned int read_memory(HANDLE proc,unsigned long long addr){
+int read_memory(HANDLE proc,unsigned long long addr,void *buff,size_t target_size){
     //you technically can read out all
     SIZE_T number_of_bytes_read;
-
-    //try to fix this 
-    unsigned int *buff = malloc(sizeof(int)* BUFF_SIZE);//chnage this 
     HMODULE ntdll = GetModuleHandle("ntdll.dll");
     pZwReadVirtualMemory ZwReadVirtualMemory = (pZwReadVirtualMemory)GetProcAddress(ntdll,"ZwReadVirtualMemory");
     if(!ZwReadVirtualMemory){
         MessageBox(NULL,"unable to get address of ZwReadVirtualMemory","error",MB_OK);
-        free(buff);
         return 0;
     }
 
-    if(!buff){
-        MessageBox(NULL,"unable to allocate memory for buffer","error",MB_OK);  
-        return 0;
-    }
-    NTSTATUS status =ZwReadVirtualMemory(proc,(LPCVOID)addr,buff,sizeof(buff),&number_of_bytes_read);
+    NTSTATUS status =ZwReadVirtualMemory(proc,(LPCVOID)addr,buff,target_size,&number_of_bytes_read);
     if(NT_ERROR(status)){
         NT_Error_Message(status,addr);
-        free(buff);
         return 0;
     }
-    unsigned int value = *buff;
-    free(buff);
-    return value;
+    return 1;
 }
 
 DWORD WINAPI scan_thread(LPVOID lpParam){
     //cast the struct pointer to lparam 
     thread_params *params = (thread_params*)lpParam;
-    scan_memory(params->pid,params->Target);
+    scan_memory(params->pid,&params->Target);
     PostMessage(params->hwnd_test,WM_USER+4,0,0);//POST TO WM_SCAN_THREAD_FINISHED;
 
     char dbg[100];
@@ -81,7 +78,7 @@ DWORD WINAPI scan_thread(LPVOID lpParam){
     return 0;
 }
 
-void scan_memory(DWORD proc_id,DWORD target){
+void scan_memory(DWORD proc_id,VALUE_TYPE *target){
     free_address_array(&global_address_info);
     global_address_info = init_addr_array();
     MEMORY_BASIC_INFORMATION mbi ={0};
@@ -93,6 +90,10 @@ void scan_memory(DWORD proc_id,DWORD target){
         fprintf(stderr,"unable to open process \n pls pass in a valid pid %s",strerror(GetLastError()));
         return;
     }
+    size_t type_size = get_type_size(target->type);
+    char DEBUG[64];
+    snprintf(DEBUG,64,"current size type %llu",type_size);
+    MessageBox(NULL,DEBUG,"TEST",MB_OK);
     
     //defining undocumented win calls
     HMODULE ntdll = GetModuleHandle("ntdll.dll");
@@ -103,6 +104,13 @@ void scan_memory(DWORD proc_id,DWORD target){
         return;
     }
     NTSTATUS status = NtQueryVirtualMemory(global_proc.proc,(LPVOID)base_addr,MemoryBasicInformation,&mbi,sizeof(mbi),0);
+
+    void *buff = malloc(type_size);
+    if(!buff){
+        MessageBox(NULL,"error in mem alloc","error",MB_ICONERROR);
+        CloseHandle(global_proc.proc);
+        return;
+    }
 
     while(NT_SUCCESS(status)){
         // memory filter 
@@ -116,8 +124,8 @@ void scan_memory(DWORD proc_id,DWORD target){
                 //fprintf(stdout,"Memory region at 0x%p is committed and accessible.\n", (void*)mbi.BaseAddress);
                 
                 while(start < end){
-                    unsigned int value = read_memory(global_proc.proc, start);
-                    if(value == target){
+                    if(read_memory(global_proc.proc,start,buff,type_size)){
+                        if(memcmp(buff,&target->VALUE_UNION,type_size)==0){
                         address_info *info = malloc(sizeof(address_info));
                         if(!info){
                             //fprintf(stderr,"error in mem alloc");
@@ -125,40 +133,44 @@ void scan_memory(DWORD proc_id,DWORD target){
                             return;
                         }
                         info->addr = start;
-                        info->value = value;
-                        info->previous = value;
+                        info->value = *target;
+                        info->previous = *target;
                         add_array_address_info(&global_address_info, info);
                     }
-                    start += sizeof(int); //increment by 4 bytes to read the next value
                 }
+                start += type_size; //increment by the size of the value to read 
             }
+        }
             base_addr += mbi.RegionSize;//move to the next region
             status = NtQueryVirtualMemory(global_proc.proc, (LPVOID)base_addr, MemoryBasicInformation, &mbi, sizeof(mbi), NULL);
-        }
+    }
+    free(buff);
 }
-
 
 void compare_changes(DWORD proc_id,address_arr *arr){
     free_filtered_address_array(&global_filtered_info);
     global_filtered_info = init_filtered_addr_array();
     for(int i = 0 ;i< arr->count;i++){
-        unsigned int re_read_value = read_memory(global_proc.proc,arr->info[i].addr);
-        if(re_read_value != arr->info[i].value){
-            filtered_adderess_info *filtered_info = malloc(sizeof(filtered_adderess_info));
-            if(!filtered_info){
-                MessageBox(NULL,"error in mem alloc","error",MB_ICONERROR);
-                return;
+        VALUE_TYPE re_read_value;
+        re_read_value.type = arr->info[i].value.type;
+        if(read_memory(global_proc.proc,arr->info[i].addr,&re_read_value.VALUE_UNION,get_type_size(arr->info[i].value.type))){
+            if(memcmp(&re_read_value.VALUE_UNION,&arr->info[i].value.VALUE_UNION,get_type_size(arr->info[i].value.type)) != 0){
+                filtered_adderess_info *filtered_info = malloc(sizeof(filtered_adderess_info));
+                if(!filtered_info){
+                    MessageBox(NULL,"error in mem alloc","error",MB_ICONERROR);
+                    return;
+                }
+                filtered_info->addr = arr->info[i].addr;
+                filtered_info->value = re_read_value;
+                filtered_info->previous = arr->info[i].value;
+                add_array_address_info_filter(&global_filtered_info,filtered_info);
             }
-            filtered_info->addr = arr->info[i].addr;
-            filtered_info->value = re_read_value;
-            filtered_info->previous = arr->info[i].value;
-            add_array_address_info_filter(&global_filtered_info,filtered_info);
         }
     }
 }
 
-void  write_to_address(unsigned long long address,unsigned int value){
-    write_memomry(global_proc.proc,value,address);
+void  write_to_address(unsigned long long address,void *value,size_t value_size){
+    write_memomry(global_proc.proc,value,value_size,address);
 }
 /*there is something to consider reagding this and how can i effectively filter out the
 process after a 2nd scan i do not know how to go about that for now what happens is that you initially 
