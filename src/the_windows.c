@@ -220,6 +220,7 @@ LRESULT CALLBACK WndProc(HWND hwnd,UINT msg,WPARAM wparam,LPARAM lparam){
                         create_popup(hwnd);
                     } 
                 }
+                break;
                 case NM_RCLICK:
                     HMENU hpop;
                     POINT cur_point;
